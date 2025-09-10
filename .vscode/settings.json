@@ -1,0 +1,69 @@
+{
+  "C_Cpp.intelliSenseEngine": "default",
+  "idf.espIdfPathWin": "C:\\Users\\Adam\\esp\\v5.5\\esp-idf",
+  "idf.pythonInstallPath": "C:\\Users\\Adam\\.espressif\\tools\\idf-python\\3.11.2\\python.exe",
+  "idf.openOcdConfigs": [
+    "board/esp32c6-builtin.cfg"
+  ],
+  "idf.portWin": "COM8",
+  "idf.toolsPathWin": "C:\\Users\\Adam\\.espressif",
+  "idf.customExtraVars": {
+    "IDF_TARGET": "esp32c6"
+  },
+  "files.associations": {
+    "freertos.h": "c",
+    "time.h": "c",
+    "esp_sleep.h": "c",
+    "esp_wifi.h": "c",
+    "http_server.h": "c",
+    "typeinfo": "c",
+    "cstring": "c",
+    "app_settings.h": "c",
+    "functional": "c",
+    "chrono": "c",
+    "random": "c",
+    "crash-dummy.h": "c",
+    "c6_prototyper_core.h": "c",
+    "adc_oneshot.h": "c",
+    "gpio_num.h": "c",
+    "gpio_core_config.h": "c",
+    "cstdlib": "c",
+    "cstdint": "c",
+    "esp_mac.h": "c",
+    "esp_chip_info.h": "c",
+    "ets_sys.h": "c",
+    "esp_http_server.h": "c",
+    "string": "c",
+    "unordered_map": "c",
+    "string_view": "c",
+    "sstream": "c",
+    "regex": "c",
+    "esp_log_level.h": "c",
+    "string.h": "c",
+    "condition_variable": "c",
+    "future": "c",
+    "app_logger.h": "c",
+    "float.h": "c",
+    "ds18b20.h": "c",
+    "esp_err.h": "c",
+    "sdkconfig.h": "c",
+    "i2c_master.h": "c",
+    "esp_log.h": "c"
+  },
+  "idf.flashType": "UART",
+  "C_Cpp.errorSquiggles": "enabled",
+  "cmake.options.advanced": {
+    "build": {
+      "statusBarVisibility": "inherit",
+      "inheritDefault": "visible"
+    },
+    "launch": {
+      "statusBarVisibility": "inherit",
+      "inheritDefault": "visible"
+    },
+    "debug": {
+      "statusBarVisibility": "inherit",
+      "inheritDefault": "visible"
+    }
+  }
+}

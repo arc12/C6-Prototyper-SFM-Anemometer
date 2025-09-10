@@ -1,0 +1,36 @@
+# *** WIFI ****
+# There may be other entries which can be set to "n" to reduce compiled binary size
+CONFIG_ESP_WIFI_SOFTAP_SUPPORT=y
+CONFIG_ESP_WIFI_SOFTAP_SAE_SUPPORT=n
+
+# **** HTTP SERVER ***
+# Default is 512 but Opera and Chrome cause an error reporting that the header is too large when receiving a HTML form POST.
+CONFIG_HTTPD_MAX_REQ_HDR_LEN=1000
+
+# **** RTC ****
+# Config for external crystal + some settings related to startup and calibration.
+# There seems to be some duplication of concepts with different key names, but these were all taken from generated sdkconfig files!
+CONFIG_RTC_CLK_SRC_EXT_CRYS=y
+CONFIG_ESP_SYSTEM_RTC_EXT_XTAL=y
+# default is 0 in menuconfig UI but there are notes suggesting this is a bad idea. However, using 0 seems fine!
+# CONFIG_ESP_SYSTEM_RTC_EXT_XTAL_BOOTSTRAP_CYCLES=0
+# CONFIG_ESP32_RTC_XTAL_BOOTSTRAP_CYCLES=0  # this is deprecated and replaced by the above
+# default CONFIG_RTC_CLK_CAL_CYCLES is 3000, which is the minimum recommended in the ESP-IDF docs
+CONFIG_RTC_CLK_CAL_CYCLES=3000
+
+# **** Logging - changes to defaults ****
+CONFIG_BOOTLOADER_LOG_LEVEL_WARN=y
+CONFIG_BOOTLOADER_LOG_LEVEL=2
+CONFIG_LOG_DEFAULT_LEVEL_WARN=y
+CONFIG_LOG_DEFAULT_LEVEL=2
+CONFIG_LOG_MAXIMUM_LEVEL_DEBUG=y
+CONFIG_LOG_MAXIMUM_LEVEL=4
+
+# **** Flash Partition Table (and size) ****
+# first one suppresses what seems to be a harmless LOGW message
+CONFIG_SPI_FLASH_SUPPORT_GD_CHIP=y
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+CONFIG_ESPTOOLPY_FLASHSIZE="4MB"
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+CONFIG_PARTITION_TABLE_FILENAME="partitions.csv"

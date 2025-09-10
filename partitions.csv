@@ -1,0 +1,6 @@
+# Name, Type, SubType, Offset, Size, Flags
+nvs,data,nvs,,32K,
+phy_init,data,phy,,4K,
+# 1280K = 1.25M
+factory,app,factory,,1280K,
+storage,data,,,12K

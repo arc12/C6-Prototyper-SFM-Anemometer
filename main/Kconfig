@@ -1,0 +1,16 @@
+menu "Air Flow Datalogger App Config"
+    menu "Identity"
+        config APP_IDENTITY
+            string "Application identity (logger type code)"
+            default "SFM"
+        config APP_DESCRIPTION
+            string "Application description (longer form for home page)"
+            default "SFM3003 Air Flow."
+    endmenu
+
+    menu "Main Logging"
+        config MAIN_LOG_INFO
+            bool "Show INFO logs for main"
+            default y
+    endmenu
+endmenu
