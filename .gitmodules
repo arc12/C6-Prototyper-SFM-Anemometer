@@ -1,0 +1,6 @@
+[submodule "core-components"]
+	path = core-components
+	url = git@github.com:arc12/C6-Prototyper-Components.git
+[submodule "components/sfm3003"]
+	path = components/sfm3003
+	url = git@github.com:arc12/C6-Prototyper-SFM3003.git
