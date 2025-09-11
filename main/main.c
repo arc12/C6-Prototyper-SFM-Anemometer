@@ -16,6 +16,9 @@ const char* compiled_at = __DATE__ " @ " __TIME__;
 
 static const char* TAG = "Main";
 
+// Settings local variables. Dont expect to need a 16 bit int ever, but not worth defining settings fns for 8 bit (+ size checks)
+uint16_t sfm_burst_len;
+uint16_t sfm_bperiod_s;
 
 /* Data Logging - Structure and Functions */
 // unit of logging struct. For neatness (at least) make this so that a whole number of units fills a 4k page.
@@ -31,17 +34,43 @@ typedef union {
     uint8_t raw_rep[16];
 } data_unit;
 
-// Take the reading, compose the log record and log it. Callback from core_activity()
+// Take the reading(s), compose the log record and log it. Callback from core_activity()
 // The return error is only for the write_record; sensor activity should have produced its own logs
 esp_err_t do_work_fn(time_t ts){
     data_unit_t record = {.timestamp=(uint32_t) ts};  // use wake-up time for clean record. No appreciable diff in this case but maybe sometimes.
 
-    // float temp;
-    // float flow_slm;
-    sfm_read_oneshot(&record.flow_slm, &record.temp);
-    record.flow_mps = compute_flow_mps(record.flow_slm);
+    if (sfm_burst_len == 0) {  // Single reading per wake. The temp is read before full warm-up
+        sfm_read_oneshot(&record.flow_slm, &record.temp);
+        record.flow_mps = compute_flow_mps(record.flow_slm);
 
-    return write_record(&record);
+        return write_record(&record);
+    } else {
+        // Multiple readings with SFM in measurement mode throughout.
+        // The temp is read when each flow is. This includes the sfm_burst_len == 1 case (hence it is different from case when == 0).
+        // The timestamp is fudged to be neat and the delay is not computed to us or ms accuracy as it is N seconds long.        
+        if (sfm_get_state() == SFM_ASLEEP) {  // shouldn't happen in well-written main functions
+            ESP_LOGW(TAG, "SFM3003 was asleep; waking. This should only happen with sleep hold-off.");
+            sfm_wake();
+        }
+        esp_err_t err = sfm_to_measurement(true);
+        if (err == ESP_OK){
+            for (uint16_t i = 0; i < sfm_burst_len; i++){
+                if (sfm_take_reading((i == 0)?50:0, &record.flow_slm, &record.temp) != ESP_OK) break;
+                record.flow_mps = compute_flow_mps(record.flow_slm);
+                if (write_record(&record) != ESP_OK) break;
+                vTaskDelay(sfm_bperiod_s * 1000 / portTICK_PERIOD_MS);
+                record.timestamp += sfm_bperiod_s;
+            }
+        }
+
+        // idle and to sleep, ready for ESP32 deep sleep. Try these even if errors above.
+        // Each will log an error but the return value from this function depends ONLY on what happens taking the reading
+        sfm_to_idle();
+        sfm_to_sleep();
+
+        return err;
+
+    }
 }
 
 // For CSV emitter in HTTP response. This is a callback to format one record (as raw bytes) to one row of csv
@@ -117,29 +146,43 @@ void live_reading(char *msgbuff, size_t msgbuff_len, bool for_html){
 /* Settings for web access */
 // First stuff for main
 // List of storage keys. Max 15 chars
-
-// TODO add burst vs one-shot control settings and logic
-const char* main_settings_available[] = {};  // see .n_settings, below
+#define SFM_N_SETTINGS 2
+const char* main_settings_available[SFM_N_SETTINGS] = {"SFM_BURST_LEN", "SFM_BPERIOD_S"};  // see .n_settings, below
 
 // fn to load local variables from NVS or default
 void main_load_settings(){
-    ESP_LOGD(TAG, "Reading Settings (none)");
+    ESP_LOGD(TAG, "Reading Settings");
+    setting_get_uint16("SFM_BURST_LEN", &sfm_burst_len, 0);  // default is no burst
+    setting_get_uint16("SFM_BPERIOD_S", &sfm_bperiod_s, 30);
 }
 // fn to get a string version of the local value and the original (aka default) - for web server
 void main_setting_get_str(const char* key, char* current, char* original){
-    // current = NULL;
-    // original = NULL;
+    if (strcmp(key, "SFM_BURST_LEN") == 0){
+        snprintf(current, SETTINGS_CO_BUFF_LEN, "%u", sfm_burst_len);
+        strcpy(original, "0");
+    } else if (strcmp(key, "SFM_BPERIOD_S") == 0){
+        snprintf(current, SETTINGS_CO_BUFF_LEN, "%u", sfm_bperiod_s);
+        strcpy(original, "30");
+    } else {
+        current = NULL;
+        original = NULL;
+    }
 }
 // fn to take string form of setting from webserver and store to local variable and NVS
 esp_err_t main_setting_store_str(const char* key, char * value){
     esp_err_t err = ESP_ERR_INVALID_ARG;  // for if no case is matched
+    if (strcmp(key, "SFM_BURST_LEN") == 0) {
+        err = setting_store_uint16(key, value, &sfm_burst_len);  // updates local value with parsed result irrespective of whether NVS storage worked
+    } else if (strcmp(key, "SFM_BPERIOD_S") == 0) {
+        err = setting_store_uint16(key, value, &sfm_bperiod_s);
+    }
     return err;
 }
 app_settings_source_t main_ass = {
     .source_code="MAIN",
     .source_name="Main",
     .settings_available_ptr=main_settings_available,
-    .n_settings=0,
+    .n_settings=SFM_N_SETTINGS,
     .settings_get_str_fn=main_setting_get_str,
     .settings_store_str_fn=main_setting_store_str
 };
