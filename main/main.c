@@ -60,6 +60,7 @@ esp_err_t do_work_fn(time_t ts){
                 if (write_record(&record) != ESP_OK) break;
                 vTaskDelay(sfm_bperiod_s * 1000 / portTICK_PERIOD_MS);
                 record.timestamp += sfm_bperiod_s;
+                app_logger_store();  // essential if debug logging in sfm3003 component
             }
         }
 
@@ -67,6 +68,8 @@ esp_err_t do_work_fn(time_t ts){
         // Each will log an error but the return value from this function depends ONLY on what happens taking the reading
         sfm_to_idle();
         sfm_to_sleep();
+        
+        app_logger_store();
 
         return err;
 
@@ -215,8 +218,8 @@ void app_main(void)
     app_settings_sources[1] = core_ass;
     // None for the SFM3003
 
-    // setup interface and scan for DS18B20 devices
-    sfm_init();  // logs its own errors and leaves state as SFM_MISSING on fail, so no need to say more or take further action.
+    // setup i2c and read serial number. Include a wake interaction since that will almost always be required when app_main is run, since SLM put to sleep before ESP32 sleeps.
+    sfm_init(true);  // logs its own errors and leaves state as SFM_MISSING on fail, so no need to say more or take further action.
 
     app_logger_store();
 
