@@ -79,7 +79,6 @@ esp_err_t do_work_fn(time_t ts){
 // For CSV emitter in HTTP response. This is a callback to format one record (as raw bytes) to one row of csv
 // NB: column order MUST be consistent across heading and data
 size_t format_record(uint8_t bytes[], char* formatted, size_t buff_size, bool as_csv){
-    // TODO checks for -MAX_FLT for all floats
     size_t str_len;
     if (bytes == NULL){
         // heading
@@ -88,7 +87,7 @@ size_t format_record(uint8_t bytes[], char* formatted, size_t buff_size, bool as
         data_unit record;
         memcpy(&record.raw_rep, bytes, data_unit_size);
         
-        // take account of possible missing values (and apply dp formatting)
+        // take account of possible missing values - signalled by -MAX_FLT - (and apply dp formatting)
         char s_flow_slm[8];
         char s_flow_mps[8];
         char s_temp[8];
