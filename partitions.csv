@@ -3,4 +3,5 @@ nvs,data,nvs,,32K,
 phy_init,data,phy,,4K,
 # 1280K = 1.25M
 factory,app,factory,,1280K,
-storage,data,,,2M
+# 6656K = 6.5M
+storage,data,,,6656K,
