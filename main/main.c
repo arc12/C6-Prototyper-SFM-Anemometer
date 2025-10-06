@@ -40,7 +40,7 @@ esp_err_t do_work_fn(time_t ts){
     data_unit_t record = {.timestamp=(uint32_t) ts};  // use wake-up time for clean record. No appreciable diff in this case but maybe sometimes.
 
     if (sfm_burst_len == 0) {  // Single reading per wake. The temp is read before full warm-up
-        sfm_read_oneshot(&record.flow_slm, &record.temp);
+        sfm_read_oneshot(&record.flow_slm, &record.temp, true);  // apply offset
         record.flow_mps = compute_flow_mps(record.flow_slm);
 
         return write_record(&record);
@@ -55,7 +55,7 @@ esp_err_t do_work_fn(time_t ts){
         esp_err_t err = sfm_to_measurement(true);
         if (err == ESP_OK){
             for (uint16_t i = 0; i < sfm_burst_len; i++){
-                if (sfm_take_reading((i == 0)?50:0, &record.flow_slm, &record.temp) != ESP_OK) break;
+                if (sfm_take_reading((i == 0)?50:0, &record.flow_slm, &record.temp, true) != ESP_OK) break;
                 record.flow_mps = compute_flow_mps(record.flow_slm);
                 if (write_record(&record) != ESP_OK) break;
                 vTaskDelay(sfm_bperiod_s * 1000 / portTICK_PERIOD_MS);
@@ -125,7 +125,7 @@ void live_reading(char *msgbuff, size_t msgbuff_len, bool for_html){
 
     float temp;
     float flow_slm;
-    esp_err_t err = sfm_read_oneshot(&flow_slm, &temp);
+    esp_err_t err = sfm_read_oneshot(&flow_slm, &temp, true);  // apply offset
     float flow_mps = compute_flow_mps(flow_slm);
 
     if (err == ESP_OK){
@@ -189,7 +189,7 @@ app_settings_source_t main_ass = {
     .settings_store_str_fn=main_setting_store_str
 };
 
-#define APP_SETTINGS_N_COMPONENTS 2
+#define APP_SETTINGS_N_COMPONENTS 3
 app_settings_source_t app_settings_sources[APP_SETTINGS_N_COMPONENTS];  // A bit hacky? Use extern in http_server.c to get this.
 uint8_t app_settings_sources_size = APP_SETTINGS_N_COMPONENTS;  // sizeof(app_settings_sources) / sizeof(app_settings_source_t);
 
@@ -215,7 +215,7 @@ void app_main(void)
     // Configurable settings (via web server). Ordering here -> UI order.
     app_settings_sources[0] = main_ass;
     app_settings_sources[1] = core_ass;
-    // None for the SFM3003
+    app_settings_sources[2] = sfm3003_ass;
 
     // setup i2c and read serial number. Include a wake interaction since that will almost always be required when app_main is run, since SLM put to sleep before ESP32 sleeps.
     sfm_init(true);  // logs its own errors and leaves state as SFM_MISSING on fail, so no need to say more or take further action.
