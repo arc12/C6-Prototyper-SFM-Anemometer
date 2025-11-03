@@ -19,6 +19,7 @@ static const char* TAG = "Main";
 // Settings local variables. Dont expect to need a 16 bit int ever, but not worth defining settings fns for 8 bit (+ size checks)
 uint16_t sfm_burst_len;
 uint16_t sfm_bperiod_s;
+bool sfm_use_lp_core;  // if true then all recorded values come from LP Core sampling, and the burst settings are ignored (no burst or singleton). NB "live" readings not affected.
 
 /* Data Logging - Structure and Functions */
 // unit of logging struct. For neatness (at least) make this so that a whole number of units fills a 4k page.
@@ -39,11 +40,22 @@ typedef union {
 esp_err_t do_work_fn(time_t ts){
     data_unit_t record = {.timestamp=(uint32_t) ts};  // use wake-up time for clean record. No appreciable diff in this case but maybe sometimes.
 
+    // NOTE : 3 way choice of behaviour here, and each has its own return statement
+
+    // If LP Core in use then all we need to do is get the mean of stored samples
+    if (sfm_use_lp_core) {
+        lp_core_readings(&record.temp, &record.flow_slm);
+        record.flow_mps = compute_flow_mps(record.flow_slm);
+        app_logger_store();  // essential if debug logging in sfm3003 component
+        return write_record(&record);
+    }
+
+    // HP Core in use - SFM3003 under direct control
     if (sfm_burst_len == 0) {  // Single reading per wake. The temp is read before full warm-up
         sfm_read_oneshot(&record.flow_slm, &record.temp, true);  // apply offset
         record.flow_mps = compute_flow_mps(record.flow_slm);
-
         return write_record(&record);
+
     } else {
         // Multiple readings with SFM in measurement mode throughout.
         // The temp is read when each flow is. This includes the sfm_burst_len == 1 case (hence it is different from case when == 0).
@@ -148,14 +160,15 @@ void live_reading(char *msgbuff, size_t msgbuff_len, bool for_html){
 /* Settings for web access */
 // First stuff for main
 // List of storage keys. Max 15 chars
-#define SFM_N_SETTINGS 2
-const char* main_settings_available[SFM_N_SETTINGS] = {"SFM_BURST_LEN", "SFM_BPERIOD_S"};  // see .n_settings, below
+#define SFM_N_SETTINGS 3
+const char* main_settings_available[SFM_N_SETTINGS] = {"SFM_BURST_LEN", "SFM_BPERIOD_S", "SFM_USE_LP_CORE"};  // see .n_settings, below
 
 // fn to load local variables from NVS or default
 void main_load_settings(){
     ESP_LOGD(TAG, "Reading Settings");
     setting_get_uint16("SFM_BURST_LEN", &sfm_burst_len, 0);  // default is no burst
     setting_get_uint16("SFM_BPERIOD_S", &sfm_bperiod_s, 30);
+    setting_get_bool("SFM_USE_LP_CORE", &sfm_use_lp_core, false);
 }
 // fn to get a string version of the local value and the original (aka default) - for web server
 void main_setting_get_str(const char* key, char* current, char* original){
@@ -165,6 +178,9 @@ void main_setting_get_str(const char* key, char* current, char* original){
     } else if (strcmp(key, "SFM_BPERIOD_S") == 0){
         snprintf(current, SETTINGS_CO_BUFF_LEN, "%u", sfm_bperiod_s);
         strcpy(original, "30");
+    } else if (strcmp(key, "SFM_USE_LP_CORE") == 0){
+        strcpy(current, sfm_use_lp_core?"1":"0");
+        strcpy(original, "0");
     } else {
         current = NULL;
         original = NULL;
@@ -177,6 +193,8 @@ esp_err_t main_setting_store_str(const char* key, char * value){
         err = setting_store_uint16(key, value, &sfm_burst_len);  // updates local value with parsed result irrespective of whether NVS storage worked
     } else if (strcmp(key, "SFM_BPERIOD_S") == 0) {
         err = setting_store_uint16(key, value, &sfm_bperiod_s);
+    } else if (strcmp(key, "SFM_USE_LP_CORE") == 0) {
+        err = setting_store_bool(key, value, &sfm_use_lp_core);
     }
     return err;
 }
@@ -192,6 +210,18 @@ app_settings_source_t main_ass = {
 #define APP_SETTINGS_N_COMPONENTS 3
 app_settings_source_t app_settings_sources[APP_SETTINGS_N_COMPONENTS];  // A bit hacky? Use extern in http_server.c to get this.
 uint8_t app_settings_sources_size = APP_SETTINGS_N_COMPONENTS;  // sizeof(app_settings_sources) / sizeof(app_settings_source_t);
+
+// set the I2C interface and SFM3003 state for use from HP Core, specifically from the WS interactions.
+// Only used when the LP Core is being used to take measurements, called as call-back
+esp_err_t switch_sfm_to_hp(){
+    lp_core_stop();
+    return ESP_OK;
+}
+
+// Used to revert to LP Core access. Not used in initial setup, called as call-back
+esp_err_t switch_sfm_to_lp(){
+    return lp_core_start();
+}
 
 void app_main(void)
 {
@@ -218,9 +248,14 @@ void app_main(void)
     app_settings_sources[2] = sfm3003_ass;
 
     // setup i2c and read serial number. Include a wake interaction since that will almost always be required when app_main is run, since SLM put to sleep before ESP32 sleeps.
-    sfm_init(true);  // logs its own errors and leaves state as SFM_MISSING on fail, so no need to say more or take further action.
+    // TODO check use of sfm_use_lp_core always is OK + add LP core start/stop ops for WS start/stop
+    sfm_init(sfm_use_lp_core, true);  // logs its own errors and leaves state as SFM_MISSING on fail, so no need to say more or take further action.
 
     app_logger_store();
 
-    core_activity(do_work_fn);  // pass work callback
+    if (sfm_use_lp_core){
+        core_activity_ws_callbacks(do_work_fn, switch_sfm_to_hp, switch_sfm_to_lp);
+    } else {
+        core_activity(do_work_fn);  // pass work callback
+    }
 }
