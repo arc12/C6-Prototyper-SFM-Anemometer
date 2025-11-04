@@ -220,7 +220,7 @@ esp_err_t switch_sfm_to_hp(){
 
 // Used to revert to LP Core access. Not used in initial setup, called as call-back
 esp_err_t switch_sfm_to_lp(){
-    return lp_core_start();
+    return lp_core_start(true);
 }
 
 void app_main(void)
@@ -235,7 +235,7 @@ void app_main(void)
 
     // gpio_dump_io_configuration(stdout, SOC_GPIO_VALID_GPIO_MASK);
 
-    core_init();
+    int wake_cause = core_init();  // actually esp_sleep_wakeup_cause_t return type
     
     main_load_settings();
 
@@ -248,8 +248,7 @@ void app_main(void)
     app_settings_sources[2] = sfm3003_ass;
 
     // setup i2c and read serial number. Include a wake interaction since that will almost always be required when app_main is run, since SLM put to sleep before ESP32 sleeps.
-    // TODO check use of sfm_use_lp_core always is OK + add LP core start/stop ops for WS start/stop
-    sfm_init(sfm_use_lp_core, true);  // logs its own errors and leaves state as SFM_MISSING on fail, so no need to say more or take further action.
+    sfm_init(sfm_use_lp_core, true, wake_cause);  // logs its own errors and leaves state as SFM_MISSING on fail, so no need to say more or take further action.
 
     app_logger_store();
 
