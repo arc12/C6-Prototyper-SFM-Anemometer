@@ -44,7 +44,8 @@ esp_err_t do_work_fn(time_t ts){
 
     // If LP Core in use then all we need to do is get the mean of stored samples
     if (sfm_use_lp_core) {
-        lp_core_readings(&record.temp, &record.flow_slm);
+        float flow_slm_sd;
+        lp_core_readings(&record.temp, &record.flow_slm, &flow_slm_sd);
         record.flow_mps = compute_flow_mps(record.flow_slm);
         app_logger_store();  // essential if debug logging in sfm3003 component
         return write_record(&record);
@@ -133,12 +134,12 @@ void live_reading(char *msgbuff, size_t msgbuff_len, bool for_html){
     const char* prefix = for_html?"<p>":"";
     const char* suffix = for_html?"</p>":"";
 
-    size_t index = snprintf(msgbuff, msgbuff_len, "%sSN: %llu%s\n", prefix, sfm_serial_number, suffix);
-
     float temp;
     float flow_slm;
     esp_err_t err = sfm_read_oneshot(&flow_slm, &temp, true);  // apply offset
     float flow_mps = compute_flow_mps(flow_slm);
+
+    size_t index = snprintf(msgbuff, msgbuff_len, "%sSN: %llu%s\n", prefix, sfm_serial_number, suffix);
 
     if (err == ESP_OK){
         // take account of possible missing values (and apply dp formatting).
