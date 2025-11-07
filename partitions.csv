@@ -3,5 +3,7 @@ nvs,data,nvs,,32K,
 phy_init,data,phy,,4K,
 # 1280K = 1.25M
 factory,app,factory,,1280K,
-# 6656K = 6.5M
+# 6656K = 6.5M - for 8M module
 storage,data,,,6656K,
+# for testing on 4M board
+# storage,data,,,1M,
