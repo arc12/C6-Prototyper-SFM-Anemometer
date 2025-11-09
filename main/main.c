@@ -104,7 +104,7 @@ size_t format_record(uint8_t bytes[], char* formatted, size_t buff_size, bool as
         char s_flow_slm[8];
         char s_flow_mps[8];
         char s_temp[8];
-        const char* missing_val = (as_csv)?"":"NA";  // "" for missing data if CSV else "NA"
+        const char* missing_val = (as_csv)?"":"?";  // "" for missing data if CSV else "?"
         float_to_string_guarded(s_flow_slm, 8, record.struct_rep.flow_slm, "%.2f", missing_val);
         float_to_string_guarded(s_flow_mps, 8, record.struct_rep.flow_mps, "%.2f", missing_val);
         float_to_string_guarded(s_temp, 8, record.struct_rep.temp, "%.2f", missing_val);
@@ -113,7 +113,7 @@ size_t format_record(uint8_t bytes[], char* formatted, size_t buff_size, bool as
             str_len = snprintf(formatted, buff_size, "%lu,%s,%s,%s\n", record.struct_rep.timestamp, s_flow_slm, s_flow_mps, s_temp);
         } else {
             // Version for user-facing format of one record from datalog
-            str_len = snprintf(formatted, buff_size, "Timestamp=%lu, Flow=%sSLM=%sm/s, T=%sC", record.struct_rep.timestamp, s_flow_slm, s_flow_mps, s_temp);
+            str_len = snprintf(formatted, buff_size, "Timestamp=%lu, Flow=%sslm=%sm/s, T=%sC", record.struct_rep.timestamp, s_flow_slm, s_flow_mps, s_temp);
         }
     }
     return (str_len + 1 < buff_size)?str_len:buff_size;
@@ -180,8 +180,8 @@ void main_setting_get_str(const char* key, char* current, char* original){
         snprintf(current, SETTINGS_CO_BUFF_LEN, "%u", sfm_bperiod_s);
         strcpy(original, "30");
     } else if (strcmp(key, "SFM_USE_LP_CORE") == 0){
-        strcpy(current, sfm_use_lp_core?"1":"0");
-        strcpy(original, "0");
+        strcpy(current, sfm_use_lp_core?"y":"n");
+        strcpy(original, "n");
     } else {
         current = NULL;
         original = NULL;
@@ -244,11 +244,11 @@ void app_main(void)
     http_server_attach_data_interface(format_record, time_of_record, live_reading);  // callbacks to these functions in data logger component from web server
 
     // Configurable settings (via web server). Ordering here -> UI order.
-    app_settings_sources[0] = main_ass;
-    app_settings_sources[1] = core_ass;
+    app_settings_sources[0] = core_ass;
+    app_settings_sources[1] = main_ass;
     app_settings_sources[2] = sfm3003_ass;
 
-    // setup i2c and read serial number. Include a wake interaction since that will almost always be required when app_main is run, since SLM put to sleep before ESP32 sleeps.
+    // setup i2c and read serial number. Include a wake interaction since that will almost always be required when app_main is run, since SFM put to sleep before ESP32 sleeps.
     sfm_init(sfm_use_lp_core, true, wake_cause);  // logs its own errors and leaves state as SFM_MISSING on fail, so no need to say more or take further action.
 
     app_logger_store();
