@@ -51,10 +51,15 @@ esp_err_t do_work_fn(time_t ts){
 
     // If LP Core in use then all we need to do is get the mean of stored samples
     if (sfm_use_lp_core) {
-        lp_core_readings(&record.temp, &record.flow_slm, &record.flow_slm_sd);
-        record.flow_mps = compute_flow_mps(record.flow_slm);  // NB not doing the same for the SD because the conversion should be done before SD calc. Calib fns not valid for SD.
+        esp_err_t err = lp_core_readings(&record.temp, &record.flow_slm, &record.flow_slm_sd);
         app_logger_store();  // essential if debug logging in sfm3003 component
-        return write_record(&record);
+        // Skip logging if the LP Core was not ready and buffer filled
+        // ESP_ERR_INVALID_SIZE occurs if not enough samples, ESP_ERR_NOT_FOUND if the LP Core was not running
+        if ((err != ESP_ERR_INVALID_SIZE) && (err != ESP_ERR_NOT_FOUND)) {
+            record.flow_mps = compute_flow_mps(record.flow_slm);  // NB not doing the same for the SD because the conversion should be done before SD calc. Calib fns not valid for SD.
+            return write_record(&record);
+        }
+        return err;
     }
 
     // HP Core in use - SFM3003 under direct control
@@ -115,7 +120,7 @@ size_t format_record(uint8_t bytes[], char* formatted, size_t buff_size, bool as
         float_to_string_guarded(s_flow_slm, 8, record.struct_rep.flow_slm, "%.2f", missing_val);
         float_to_string_guarded(s_flow_mps, 8, record.struct_rep.flow_mps, "%.2f", missing_val);
         float_to_string_guarded(s_temp, 8, record.struct_rep.temp, "%.2f", missing_val);
-        float_to_string_guarded(s_flow_slm_sd, 8, record.struct_rep.flow_slm_sd, "%.2f", missing_val);
+        float_to_string_guarded(s_flow_slm_sd, 8, record.struct_rep.flow_slm_sd, "%.3f", missing_val);
 
         if (as_csv){
             str_len = snprintf(formatted, buff_size, "%lu,%s,%s,%s,%s\n", record.struct_rep.timestamp, s_flow_slm, s_flow_mps, s_temp, s_flow_slm_sd);
