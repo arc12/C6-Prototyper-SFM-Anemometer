@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "string.h"
+#include "float.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 
@@ -22,31 +23,36 @@ uint16_t sfm_bperiod_s;
 bool sfm_use_lp_core;  // if true then all recorded values come from LP Core sampling, and the burst settings are ignored (no burst or singleton). NB "live" readings not affected.
 
 /* Data Logging - Structure and Functions */
-// unit of logging struct. For neatness (at least) make this so that a whole number of units fills a 4k page.
-struct data_unit_s {  // 16 bytes
+// For neatness (at least) make the slot size so that a whole number of units fills a 4k page.
+#define DATA_SLOT_SIZE 32
+// The logging struct may be shorter than the slot size
+struct data_unit_s {
     uint32_t timestamp;
     float flow_slm;
     float flow_mps;
     float temp;
+    float flow_slm_sd;  // only for LP Core use
+    // three more slots not currently used
 } typedef data_unit_t;
-uint8_t data_unit_size = sizeof(data_unit_t);
 typedef union {
     data_unit_t struct_rep;
-    uint8_t raw_rep[16];
+    uint8_t raw_rep[DATA_SLOT_SIZE];
 } data_unit;
+
+uint8_t data_unit_size = sizeof(data_unit_t);  // No of bytes written/read per record - may be less than DATA_SLOT_SIZE
+uint8_t data_slot_size = DATA_SLOT_SIZE;  // Unit of increment of address per record.
 
 // Take the reading(s), compose the log record and log it. Callback from core_activity()
 // The return error is only for the write_record; sensor activity should have produced its own logs
 esp_err_t do_work_fn(time_t ts){
-    data_unit_t record = {.timestamp=(uint32_t) ts};  // use wake-up time for clean record. No appreciable diff in this case but maybe sometimes.
+    data_unit_t record = {.timestamp=(uint32_t) ts, .flow_slm_sd=FLOAT_NA};  // use wake-up time for clean record. No appreciable diff in this case but maybe sometimes.
 
     // NOTE : 3 way choice of behaviour here, and each has its own return statement
 
     // If LP Core in use then all we need to do is get the mean of stored samples
     if (sfm_use_lp_core) {
-        float flow_slm_sd;
-        lp_core_readings(&record.temp, &record.flow_slm, &flow_slm_sd);
-        record.flow_mps = compute_flow_mps(record.flow_slm);
+        lp_core_readings(&record.temp, &record.flow_slm, &record.flow_slm_sd);
+        record.flow_mps = compute_flow_mps(record.flow_slm);  // NB not doing the same for the SD because the conversion should be done before SD calc. Calib fns not valid for SD.
         app_logger_store();  // essential if debug logging in sfm3003 component
         return write_record(&record);
     }
@@ -95,7 +101,7 @@ size_t format_record(uint8_t bytes[], char* formatted, size_t buff_size, bool as
     size_t str_len;
     if (bytes == NULL){
         // heading
-        str_len = snprintf(formatted, buff_size, "timestamp,flow_sfm,flow_mps,temp_c\n");
+        str_len = snprintf(formatted, buff_size, "timestamp,flow_sfm,flow_mps,temp_c,flow_slm_sd\n");
     } else {
         data_unit record;
         memcpy(&record.raw_rep, bytes, data_unit_size);
@@ -104,16 +110,23 @@ size_t format_record(uint8_t bytes[], char* formatted, size_t buff_size, bool as
         char s_flow_slm[8];
         char s_flow_mps[8];
         char s_temp[8];
+        char s_flow_slm_sd[8];
         const char* missing_val = (as_csv)?"":"?";  // "" for missing data if CSV else "?"
         float_to_string_guarded(s_flow_slm, 8, record.struct_rep.flow_slm, "%.2f", missing_val);
         float_to_string_guarded(s_flow_mps, 8, record.struct_rep.flow_mps, "%.2f", missing_val);
         float_to_string_guarded(s_temp, 8, record.struct_rep.temp, "%.2f", missing_val);
+        float_to_string_guarded(s_flow_slm_sd, 8, record.struct_rep.flow_slm_sd, "%.2f", missing_val);
 
         if (as_csv){
-            str_len = snprintf(formatted, buff_size, "%lu,%s,%s,%s\n", record.struct_rep.timestamp, s_flow_slm, s_flow_mps, s_temp);
+            str_len = snprintf(formatted, buff_size, "%lu,%s,%s,%s,%s\n", record.struct_rep.timestamp, s_flow_slm, s_flow_mps, s_temp, s_flow_slm_sd);
         } else {
             // Version for user-facing format of one record from datalog
-            str_len = snprintf(formatted, buff_size, "Timestamp=%lu, Flow=%sslm=%sm/s, T=%sC", record.struct_rep.timestamp, s_flow_slm, s_flow_mps, s_temp);
+            if (record.struct_rep.flow_slm_sd != FLOAT_NA) {
+                // LP Core sampling - have a SD
+                str_len = snprintf(formatted, buff_size, "Timestamp=%lu, Mean flow=%sslm=%sm/s (sd=%sslm), T=%sC", record.struct_rep.timestamp, s_flow_slm, s_flow_mps, s_flow_slm_sd, s_temp);
+            } else {
+                str_len = snprintf(formatted, buff_size, "Timestamp=%lu, Flow=%sslm=%sm/s, T=%sC", record.struct_rep.timestamp, s_flow_slm, s_flow_mps, s_temp);
+            }
         }
     }
     return (str_len + 1 < buff_size)?str_len:buff_size;
@@ -240,7 +253,7 @@ void app_main(void)
     
     main_load_settings();
 
-    init_data_logger(data_unit_size);
+    init_data_logger(data_unit_size, data_slot_size);
     http_server_attach_data_interface(format_record, time_of_record, live_reading);  // callbacks to these functions in data logger component from web server
 
     // Configurable settings (via web server). Ordering here -> UI order.
