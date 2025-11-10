@@ -226,10 +226,10 @@ esp_err_t switch_sfm_to_lp(){
 
 void app_main(void)
 {
-    // Logging levels - Generic set in LOG_DEFAULT_LEVEL is expected to be WARN and LOG_MAXIMUM_LEVEL to INFO (the latter allows runtime mutation to INFO).
-    // C6 prototyper (ie not ESP-IDF) components set overrides according to KConfig flag in their xxxx_init()
-    #ifdef CONFIG_MAIN_LOG_INFO
-    esp_log_level_set(TAG, ESP_LOG_INFO);
+    // Logging levels - Generic set in LOG_DEFAULT_LEVEL is expected to be WARN and LOG_MAXIMUM_LEVEL to DEBUG (the latter allows runtime mutation to DEBUG).
+    // C6 prototyper (ie not ESP-IDF) components set overrides according to KConfig in their xxxx_init()
+    #ifdef CONFIG_MAIN_LOG_LEVEL
+    esp_log_level_set(TAG, CONFIG_MAIN_LOG_LEVEL);
     #else
     esp_log_level_set(TAG, ESP_LOG_WARN);
     #endif
