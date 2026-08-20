@@ -13,8 +13,6 @@
 
 #include "sfm3003.h"
 
-const char* compiled_at = __DATE__ " @ " __TIME__;
-
 static const char* TAG = "Main";
 
 // Settings local variables. Dont expect to need a 16 bit int ever, but not worth defining settings fns for 8 bit (+ size checks)

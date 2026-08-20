@@ -2,8 +2,13 @@
 nvs,data,nvs,,32K,
 phy_init,data,phy,,4K,
 # 1280K = 1.25M
-factory,app,factory,,1280K,
+# factory,app,factory,,1280K,
+# NB otadata partition AND the actual data partitions must be specified
+otadata,data,ota,,8K,
+ota_0,app,ota_0,,1280K,
+ota_1,app,ota_1,,1280K,
 # 6656K = 6.5M - for 8M module
 storage,data,,,6656K,
 # for testing on 4M board
 # storage,data,,,1M,
+syslog,data,,,48K,
