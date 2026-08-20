@@ -1,0 +1,17 @@
+{
+    "betterStatusBar.commands": [
+        {
+        "id": "DL_SFM_UNK",
+        "label": "$(radio-tower) DL_SFM_UNK",
+        "command": "explorer.exe ms-availablenetworks:;timeout /t 2;netsh wlan connect name=\"DL_SFM_UNK\"",
+        "tooltip": "Connect to DL_SFM_UNK",
+        "color": "orange",
+        "terminal": {
+            "name": "Net",
+            "focus": false,
+            "singleInstance": true,
+            "clear": true
+        }
+        }
+    ]
+}
