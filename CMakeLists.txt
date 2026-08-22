@@ -7,5 +7,5 @@ cmake_minimum_required(VERSION 3.5)
 set (EXTRA_COMPONENT_DIRS "core-components")
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
-project(C6 Prototyper Core Pilot)
+project(C6_SFM_Anemometer)
 

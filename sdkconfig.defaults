@@ -14,7 +14,6 @@ CONFIG_RTC_CLK_SRC_EXT_CRYS=y
 CONFIG_ESP_SYSTEM_RTC_EXT_XTAL=y
 # default is 0 in menuconfig UI but there are notes suggesting this is a bad idea. However, using 0 seems fine!
 # CONFIG_ESP_SYSTEM_RTC_EXT_XTAL_BOOTSTRAP_CYCLES=0
-# CONFIG_ESP32_RTC_XTAL_BOOTSTRAP_CYCLES=0  # this is deprecated and replaced by the above
 # default CONFIG_RTC_CLK_CAL_CYCLES is 3000, which is the minimum recommended in the ESP-IDF docs
 CONFIG_RTC_CLK_CAL_CYCLES=3000
 

@@ -104,7 +104,7 @@ size_t format_record(uint8_t bytes[], char* formatted, size_t buff_size, bool as
     size_t str_len;
     if (bytes == NULL){
         // heading
-        str_len = snprintf(formatted, buff_size, "timestamp,flow_sfm,flow_mps,temp_c,flow_slm_sd\n");
+        str_len = snprintf(formatted, buff_size, "timestamp,flow_slm,flow_mps,temp_c,flow_slm_sd\n");
     } else {
         data_unit record;
         memcpy(&record.raw_rep, bytes, data_unit_size);
@@ -155,7 +155,10 @@ void live_reading(char *msgbuff, size_t msgbuff_len, bool for_html){
     esp_err_t err = sfm_read_oneshot(&flow_slm, &temp, true);  // apply offset
     float flow_mps = compute_flow_mps(flow_slm);
 
-    size_t index = snprintf(msgbuff, msgbuff_len, "%sSN: %llu%s\n", prefix, sfm_serial_number, suffix);
+    size_t index = 0;
+    if (for_html) {  // include the serial number for web page
+        index = snprintf(msgbuff, msgbuff_len, "%sSN: %llu%s\n", prefix, sfm_serial_number, suffix);
+    }
 
     if (err == ESP_OK){
         // take account of possible missing values (and apply dp formatting).
@@ -257,7 +260,7 @@ void app_main(void)
     main_load_settings();
 
     init_data_logger(data_unit_size, data_slot_size);
-    http_server_attach_data_interface(format_record, time_of_record, live_reading);  // callbacks to these functions in data logger component from web server
+    //http_server_attach_data_interface(format_record, time_of_record, live_reading);  // callbacks to these functions in data logger component from web server
 
     // Configurable settings (via web server). Ordering here -> UI order.
     app_settings_sources[0] = core_ass;
@@ -269,9 +272,10 @@ void app_main(void)
 
     app_logger_store();
 
+    // set callbacks before triggering the core activity loop
+    core_set_data_callbacks(do_work_fn, format_record, time_of_record, live_reading);
     if (sfm_use_lp_core){
-        core_activity_ws_callbacks(do_work_fn, switch_sfm_to_hp, switch_sfm_to_lp);
-    } else {
-        core_activity(do_work_fn);  // pass work callback
+        core_set_ws_callbacks(switch_sfm_to_hp, switch_sfm_to_lp);
     }
+    core_activity();
 }
