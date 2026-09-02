@@ -8,6 +8,19 @@ menu "Air Flow Datalogger App Config"
             default "SFM3003 Air Flow."
     endmenu
 
+    menu "Settings Defaults"
+        config DEF_SFM_BURST_LEN
+            int "Burst length (0 is no burst)"
+            default 0
+        config DEF_SFM_BPERIOD_S
+            int "Burst Period (seconds)"
+            default 30
+            range 5 600
+        config DEF_SFM_USE_LP_CORE
+            bool "Use LP Core for continuous sampling"
+            default y
+    endmenu
+
     menu "Main Logging"
         config MAIN_LOG_LEVEL
             int "Log level (1=ERR, 2=WARN, 3=INFO, 4=DEBUG). Limited by global LOG_MAXIMUM_LEVEL."

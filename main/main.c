@@ -183,24 +183,30 @@ void live_reading(char *msgbuff, size_t msgbuff_len, bool for_html){
 #define SFM_N_SETTINGS 3
 const char* main_settings_available[SFM_N_SETTINGS] = {"SFM_BURST_LEN", "SFM_BPERIOD_S", "SFM_USE_LP_CORE"};  // see .n_settings, below
 
+#ifdef CONFIG_DEF_SFM_USE_LP_CORE
+bool def_sfm_use_core = true;
+#else
+bool def_sfm_use_core = false;
+#endif
+
 // fn to load local variables from NVS or default
 void main_load_settings(){
     ESP_LOGD(TAG, "Reading Settings");
-    setting_get_uint16("SFM_BURST_LEN", &sfm_burst_len, 0);  // default is no burst
-    setting_get_uint16("SFM_BPERIOD_S", &sfm_bperiod_s, 30);
-    setting_get_bool("SFM_USE_LP_CORE", &sfm_use_lp_core, false);
+    setting_get_uint16("SFM_BURST_LEN", &sfm_burst_len, CONFIG_DEF_SFM_BURST_LEN);  // default is no burst
+    setting_get_uint16("SFM_BPERIOD_S", &sfm_bperiod_s, CONFIG_DEF_SFM_BPERIOD_S);
+    setting_get_bool("SFM_USE_LP_CORE", &sfm_use_lp_core, def_sfm_use_core);
 }
 // fn to get a string version of the local value and the original (aka default) - for web server
 void main_setting_get_str(const char* key, char* current, char* original){
     if (strcmp(key, "SFM_BURST_LEN") == 0){
         snprintf(current, SETTINGS_CO_BUFF_LEN, "%u", sfm_burst_len);
-        strcpy(original, "0");
+        snprintf(original, SETTINGS_CO_BUFF_LEN, "%u", CONFIG_DEF_SFM_BURST_LEN);
     } else if (strcmp(key, "SFM_BPERIOD_S") == 0){
         snprintf(current, SETTINGS_CO_BUFF_LEN, "%u", sfm_bperiod_s);
-        strcpy(original, "30");
+        snprintf(original, SETTINGS_CO_BUFF_LEN, "%u", CONFIG_DEF_SFM_BPERIOD_S);
     } else if (strcmp(key, "SFM_USE_LP_CORE") == 0){
         strcpy(current, sfm_use_lp_core?"y":"n");
-        strcpy(original, "n");
+        strcpy(original, def_sfm_use_core?"y":"n");
     } else {
         current = NULL;
         original = NULL;
